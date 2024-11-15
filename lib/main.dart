@@ -4,18 +4,21 @@ import 'dart:io';
 import "package:path/path.dart" show dirname;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Axle4AlgoTgUser',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: MyHomePage(),
+      home: const MyHomePage(),
     );
   }
 }
@@ -62,6 +65,8 @@ class AppConfig {
 }
 
 class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
@@ -71,9 +76,12 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   List<Process?> _processes = [];
   List<TextEditingController> _outputControllers = [];
   List<TextEditingController> _inputControllers = [];
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   TabController? _tabController;
   final agentController = TextEditingController();
   final agentPassController = TextEditingController();
+  AudioPlayer player = AudioPlayer();
 
   final List<String> highlightTriggers = [
     'Введи ПОРЯДКОВЫЙ номер кнопки',
@@ -103,6 +111,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tabController?.dispose();
+
+    for (var process in _processes) {
+      process?.kill();
+    }
     for (var controller in _outputControllers) {
       controller.dispose();
     }
@@ -169,6 +181,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       process.stdout.transform(utf8.decoder).listen((data) {
         setState(() {
           _outputControllers[index].text += data;
+          _scrollController
+              .jumpTo(_scrollController.position.maxScrollExtent);
+          _focusNode.requestFocus();
         });
         _checkForTriggers(data, index);
       });
@@ -191,6 +206,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   void _checkForTriggers(String data, int index) {
     for (var trigger in highlightTriggers) {
       if (data.toLowerCase().contains(trigger.toLowerCase())) {
+        player.setSource(AssetSource('alarm.wav'));
+        player.resume();
         setState(() {
           _isTabHighlighted[index] = true;
           _tabController?.animateTo(index);
@@ -228,11 +245,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       if (save){
         _appConfigs.removeAt(index);
       }
-      _processes[index]?.kill();
-      _processes.removeAt(index);
-      _outputControllers.removeAt(index);
-      _inputControllers.removeAt(index);
-      _isTabHighlighted.removeAt(index);
+      if (_processes.isNotEmpty){
+        _processes[index]?.kill();
+        //_processes.removeAt(index);
+      }
+      //_outputControllers.removeAt(index);
+      //_inputControllers.removeAt(index);
+      //_isTabHighlighted.removeAt(index);
       _initializeTabController();
     });
     if (save){
@@ -381,6 +400,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     style: const TextStyle(fontFamily: 'Courier'),
                     maxLines: null,
                     readOnly: true,
+                    focusNode: _focusNode,
+                    scrollController: _scrollController,
                     decoration: const InputDecoration(
                       isDense: false,
                       labelText: 'Вывод',

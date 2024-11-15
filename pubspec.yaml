@@ -38,6 +38,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   path_provider: ^2.1.5
   shared_preferences: ^2.0.6
+  audioplayers: any
 
 dev_dependencies:
   flutter_test:
@@ -67,9 +68,9 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  #assets:
+  assets:
     #- assets/main.exe
-    #- assets/alarm.wav
+    - assets/alarm.wav
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
