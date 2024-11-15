@@ -1,5 +1,5 @@
-name: test2
-description: "A new Flutter project."
+name: Axle4AlgoTgUser
+description: "Arbitrator for AlgoTgUser scripts"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: ^3.5.3
@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  path: any
   flutter:
     sdk: flutter
 
@@ -35,6 +36,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  path_provider: ^2.1.5
   shared_preferences: ^2.0.6
 
 dev_dependencies:
@@ -48,6 +50,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^4.0.0
 
+windows:
+  generate: true
+  image_path: "C:\\Users\\AlgoApi\\PycharmProjects\\SpamBotTelethon\\AlgoApi.png"
+  icon_size: 256
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -60,15 +67,20 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  #assets:
+    #- assets/main.exe
+    #- assets/alarm.wav
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
   # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
+  # https://flutter.dev/to/asset-from-package2
+
+  fonts:
+    - family: Courier
+      fonts:
+        - asset: fonts/Courier.ttf
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
