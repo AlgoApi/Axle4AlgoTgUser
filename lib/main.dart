@@ -172,7 +172,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     final config = _appConfigs[index];
     try {
       final process = await Process.start(
-          "${dirname(Platform.resolvedExecutable.toString())}\\src\\AlgoTgUser.exe",
+          "${dirname(Platform.resolvedExecutable.toString())}\\src\\AlgoTgUserAPI.exe",
           ['--login=${config.login}', '--phone=${config.phone}',
             '--text=${config.text}', '--agent=${config.agent}',
             '--agentPass=${config.agentPass}', '--passwordTg=${config.passwordTg}']);
