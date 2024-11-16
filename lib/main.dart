@@ -198,7 +198,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       setState(() {});
     } catch (e) {
       setState(() {
-        _outputControllers[index].text += 'Error starting process: $e';
+        _outputControllers[index].text += 'ERROR starting process: $e';
       });
     }
   }
