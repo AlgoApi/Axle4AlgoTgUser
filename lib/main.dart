@@ -81,7 +81,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   TabController? _tabController;
   final agentController = TextEditingController();
   final agentPassController = TextEditingController();
-  AudioPlayer player = AudioPlayer();
+  AudioPlayer audioPlayer = AudioPlayer();
+  int correction = 0;
 
   final List<String> highlightTriggers = [
     'Введи ПОРЯДКОВЫЙ номер кнопки',
@@ -97,8 +98,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     'ОШИБКА ОТПРАВКИ',
     'CONNECTION TERMINATED',
     'нет логина или id',
-    'Ошибка',
-    'Вы забыли заполнить конфиг'
+    'Ошибка'
   ];
   List<bool> _isTabHighlighted = [];
 
@@ -111,6 +111,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tabController?.dispose();
+    audioPlayer.dispose();
+    _focusNode.dispose();
+    _scrollController.dispose();
 
     for (var process in _processes) {
       process?.kill();
@@ -183,6 +186,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           _outputControllers[index].text += data;
           _scrollController
               .jumpTo(_scrollController.position.maxScrollExtent);
+          _focusNode.unfocus();
           _focusNode.requestFocus();
         });
         _checkForTriggers(data, index);
@@ -203,14 +207,17 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     }
   }
 
-  void _checkForTriggers(String data, int index) {
+  void _checkForTriggers(String data, int index) async {
     for (var trigger in highlightTriggers) {
       if (data.toLowerCase().contains(trigger.toLowerCase())) {
-        player.setSource(AssetSource('alarm.wav'));
-        player.resume();
+        await audioPlayer.play(AssetSource('alarm.wav'));
         setState(() {
           _isTabHighlighted[index] = true;
           _tabController?.animateTo(index);
+          _scrollController
+              .jumpTo(_scrollController.position.maxScrollExtent);
+          _focusNode.unfocus();
+          _focusNode.requestFocus();
         });
         break;
       }
@@ -247,6 +254,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       }
       if (_processes.isNotEmpty){
         _processes[index]?.kill();
+        _processes[index]?.kill();
+        correction += 1;
         //_processes.removeAt(index);
       }
       //_outputControllers.removeAt(index);
@@ -350,7 +359,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Axle4AlgoTgUser (${_processes.length} конфигураций запущенно)"),
+        title: Text("Axle4AlgoTgUser (${_processes.length - correction} конфигураций запущенно)"),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
