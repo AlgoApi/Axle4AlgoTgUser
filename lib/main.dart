@@ -77,7 +77,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   List<TextEditingController> _outputControllers = [];
   List<TextEditingController> _inputControllers = [];
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
   TabController? _tabController;
   final agentController = TextEditingController();
   final agentPassController = TextEditingController();
@@ -108,11 +107,15 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     _loadAppConfigs();
   }
 
+  void temptest(){
+    print(_scrollController.offset);
+    print(_scrollController.position.maxScrollExtent);
+  }
+
   @override
   void dispose() {
     _tabController?.dispose();
     audioPlayer.dispose();
-    _focusNode.dispose();
     _scrollController.dispose();
 
     for (var process in _processes) {
@@ -184,10 +187,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       process.stdout.transform(utf8.decoder).listen((data) {
         setState(() {
           _outputControllers[index].text += data;
-          _scrollController
-              .jumpTo(_scrollController.position.maxScrollExtent);
-          _focusNode.unfocus();
-          _focusNode.requestFocus();
+          if (_scrollController.offset >= _scrollController.position.maxScrollExtent - 20){
+            _scrollController
+                .jumpTo(_scrollController.position.maxScrollExtent);
+          }
         });
         _checkForTriggers(data, index);
       });
@@ -216,8 +219,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           _tabController?.animateTo(index);
           _scrollController
               .jumpTo(_scrollController.position.maxScrollExtent);
-          _focusNode.unfocus();
-          _focusNode.requestFocus();
         });
         break;
       }
@@ -409,7 +410,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     style: const TextStyle(fontFamily: 'Courier'),
                     maxLines: null,
                     readOnly: true,
-                    focusNode: _focusNode,
                     scrollController: _scrollController,
                     decoration: const InputDecoration(
                       isDense: false,
