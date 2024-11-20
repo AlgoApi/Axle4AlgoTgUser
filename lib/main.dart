@@ -282,7 +282,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   decoration: const InputDecoration(labelText: 'ВАШ логин ОСНОВНОГО тг без "@"'),
                   readOnly: (agentController.text.isNotEmpty) ? true:false),
               TextField(controller: agentPassController,
-                  decoration: const InputDecoration(labelText: 'ВАШ пароль агента'),
+                  decoration: const InputDecoration(labelText: 'ВАШ логин агента'),
                   readOnly: (agentPassController.text.isNotEmpty) ? true:false) ,
               ...List.generate(_appConfigs.length, (index) {
                 return ListTile(
