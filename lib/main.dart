@@ -5,6 +5,7 @@ import "package:path/path.dart" show dirname;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:rxdart/rxdart.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 
 class AppConfig {
   String login;
@@ -74,14 +76,17 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   List<AppConfig> _appConfigs = [];
   List<Process?> _processes = [];
-  List<TextEditingController> _outputControllers = [];
+  List<BehaviorSubject<List<String>>> _outputControllers = [];
   List<TextEditingController> _inputControllers = [];
-  final ScrollController _scrollController = ScrollController();
+  late List<ScrollController> _scrollController;
   TabController? _tabController;
   final agentController = TextEditingController();
   final agentPassController = TextEditingController();
   AudioPlayer audioPlayer = AudioPlayer();
   int correction = 0;
+  late List<List<String>> _outputtextLines;
+  late List<bool> _shouldAutoScroll;
+  late List<StreamBuilder> _streamBuilders;
 
   final List<String> highlightTriggers = [
     'Введи ПОРЯДКОВЫЙ номер кнопки',
@@ -107,22 +112,18 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     _loadAppConfigs();
   }
 
-  void temptest(){
-    print(_scrollController.offset);
-    print(_scrollController.position.maxScrollExtent);
-  }
-
   @override
   void dispose() {
     _tabController?.dispose();
     audioPlayer.dispose();
-    _scrollController.dispose();
-
+    for (var controller in _scrollController) {
+      controller.dispose();
+    }
     for (var process in _processes) {
       process?.kill();
     }
     for (var controller in _outputControllers) {
-      controller.dispose();
+      controller.close();
     }
     for (var controller in _inputControllers) {
       controller.dispose();
@@ -138,15 +139,38 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       List<dynamic> jsonList = jsonDecode(jsonString);
       setState(() {
         _appConfigs = jsonList.map((json) => AppConfig.fromMap(json)).toList();
-        _outputControllers = List.generate(_appConfigs.length, (_) => TextEditingController(), growable:true);
+        _outputControllers = List.generate(_appConfigs.length, (_) => BehaviorSubject<List<String>>(), growable:true);
         _inputControllers = List.generate(_appConfigs.length, (_) => TextEditingController(), growable:true);
         _isTabHighlighted = List.filled(_appConfigs.length, false, growable:true);
+        _outputtextLines = List.generate(_appConfigs.length, (index) => ["${index}", ], growable:true);
+        _shouldAutoScroll = List.filled(_appConfigs.length, true, growable:true);
+        _scrollController = List.generate(_appConfigs.length, (_) => ScrollController(), growable:true);
+        _streamBuilders = List.generate(_appConfigs.length, (index) => genStreamBuilder(index), growable:true);
         if (_appConfigs.isNotEmpty) {
           agentController.text = _appConfigs[0].agent;
           agentPassController.text = _appConfigs[0].agentPass;
         }
       });
       _initializeTabController();
+      for (int index = 0; index < _appConfigs.length; index++){
+        _scrollController[index].addListener(() {
+          // Если пользователь прокрутил вверх, отключаем автопрокрутку
+          if (_scrollController[index].position.pixels <
+              _scrollController[index].position.maxScrollExtent) {
+            setState(() {
+              _shouldAutoScroll[index] = false;
+            });
+          }
+
+          // Если пользователь прокрутил в самый низ, включаем автопрокрутку
+          if (_scrollController[index].position.pixels ==
+              _scrollController[index].position.maxScrollExtent) {
+            setState(() {
+              _shouldAutoScroll[index] = true;
+            });
+          }
+        });
+      }
       _startAllProcesses();
     }
   }
@@ -185,19 +209,34 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       _processes.add(process);
 
       process.stdout.transform(utf8.decoder).listen((data) {
-        setState(() {
-          _outputControllers[index].text += data;
-          if (_scrollController.offset >= _scrollController.position.maxScrollExtent - 20){
-            _scrollController
-                .jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
+        //setState(() {
+
+        //});
+        if (data != "") {
+          _outputtextLines[index].add(data.substring(0, data.length -2));
+        }
+        _outputControllers[index].add(_outputtextLines[index]); // Отправка нового текста в поток
+        if (_shouldAutoScroll[index]) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollController[index].jumpTo(
+                _scrollController[index].position.maxScrollExtent);
+          });
+        }
         _checkForTriggers(data, index);
       });
 
       process.stderr.transform(utf8.decoder).listen((data) {
         setState(() {
-          _outputControllers[index].text += 'ERROR: $data';
+          if (data != "") {
+            _outputtextLines[index].add('ERROR: $data');
+          }
+          _outputControllers[index].add(_outputtextLines[index]); // Отправка нового текста в поток
+          if (_shouldAutoScroll[index]) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollController[index].jumpTo(
+                  _scrollController[index].position.maxScrollExtent);
+            });
+          }
         });
         _checkForTriggers(data, index);
       });
@@ -205,9 +244,49 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       setState(() {});
     } catch (e) {
       setState(() {
-        _outputControllers[index].text += 'ERROR starting process: $e';
+        if (e != "") {
+          _outputtextLines[index].add('ERROR starting process: $e');
+        }
+        _outputControllers[index].add(_outputtextLines[index]); // Отправка нового текста в поток
+        if (_shouldAutoScroll[index]) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollController[index].jumpTo(
+                _scrollController[index].position.maxScrollExtent);
+          });
+        }
       });
     }
+  }
+
+  StreamBuilder genStreamBuilder(int index) {
+    return StreamBuilder<List<String>>(
+      stream: _outputControllers[index].stream,
+      builder: (context, snapshot) {
+        final outlines = snapshot.data;
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.blue, width: 2), // Рамка синего цвета
+              borderRadius: const BorderRadius.all(Radius.circular(8)), // Закругленные углы
+            ),
+            child: ListView.builder(
+              controller: _scrollController[index],
+              itemCount: outlines?.length ?? 0,
+              itemBuilder: (context, index){
+                return Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Text(
+                    outlines?[index] ?? "",
+                    style: const TextStyle(fontFamily: 'Courier'),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _checkForTriggers(String data, int index) async {
@@ -217,8 +296,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         setState(() {
           _isTabHighlighted[index] = true;
           _tabController?.animateTo(index);
-          _scrollController
-              .jumpTo(_scrollController.position.maxScrollExtent);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollController[index].jumpTo(
+                _scrollController[index].position.maxScrollExtent);
+          });
         });
         break;
       }
@@ -238,9 +319,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         text: text, agent: agent, agentPass:agentPass, passwordTg:passwordTg);
     setState(() {
       _appConfigs.add(newConfig);
-      _outputControllers.add(TextEditingController());
+      _outputControllers.add(BehaviorSubject<List<String>>());
       _inputControllers.add(TextEditingController());
       _isTabHighlighted.add(false);
+      _outputtextLines.add(["added", ]);
+      _shouldAutoScroll.add(true);
+      _scrollController.add(ScrollController());
+      _streamBuilders.add(genStreamBuilder(_appConfigs.length - 1 + correction));
+
       _initializeTabController();
     });
     _saveAppConfigs();
@@ -405,30 +491,16 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             child: Column(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _outputControllers[index],
-                    style: const TextStyle(fontFamily: 'Courier'),
-                    maxLines: null,
-                    readOnly: true,
-                    scrollController: _scrollController,
-                    decoration: const InputDecoration(
-                      isDense: false,
-                      labelText: 'Вывод',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                  child: _streamBuilders[index + correction]
                 ),
+
                 TextField(
                   controller: _inputControllers[index],
                   decoration: const InputDecoration(
-                    labelText: 'Ввод',
+                    labelText: 'Ввод: (Enter для отправки)',
                     border: OutlineInputBorder(),
                   ),
                   onSubmitted: (_) => _sendInput(index),
-                ),
-                ElevatedButton(
-                  onPressed: () => _sendInput(index),
-                  child: const Text('Отправить'),
                 ),
               ],
             ),
